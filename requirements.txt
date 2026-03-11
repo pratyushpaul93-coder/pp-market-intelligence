@@ -1,0 +1,10 @@
+anthropic
+sentence-transformers
+requests
+beautifulsoup4
+lxml
+python-dotenv
+rich
+numpy
+fastapi
+uvicorn
