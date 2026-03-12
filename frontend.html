@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SecIntel — Market Intelligence</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.development.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.development.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+
+const STYLES = `
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a0a; --surface: #111111; --surface2: #1a1a1a;
+    --border: #222222; --border2: #2a2a2a;
+    --text: #e8e8e8; --text2: #888888; --text3: #555555;
+    --accent: #c8a96e; --accent2: #e8c98e;
+    --green: #4ade80; --red: #f87171; --yellow: #fbbf24;
+    --mono: 'IBM Plex Mono', monospace; --serif: 'Playfair Display', serif;
+  }
+  body { background: var(--bg); color: var(--text); font-family: var(--mono); }
+  .app { min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* HEADER */
+  .header { border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 52px; background: var(--surface); position: sticky; top: 0; z-index: 100; }
+  .header-left { display: flex; align-items: center; gap: 16px; }
+  .logo { font-family: var(--serif); font-size: 18px; color: var(--accent); letter-spacing: 0.02em; }
+  .logo span { color: var(--text2); font-size: 11px; font-family: var(--mono); font-weight: 300; margin-left: 8px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text3); display: inline-block; margin-right: 6px; transition: background 0.3s; }
+  .status-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-text { font-size: 10px; color: var(--text2); letter-spacing: 0.08em; text-transform: uppercase; }
+  .api-input-wrap { display: flex; align-items: center; gap: 8px; }
+  .api-input { background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); font-family: var(--mono); font-size: 11px; padding: 5px 10px; width: 300px; outline: none; transition: border 0.2s; }
+  .api-input:focus { border-color: var(--accent); color: var(--text); }
+  .btn { background: transparent; border: 1px solid var(--border2); color: var(--text2); font-family: var(--mono); font-size: 11px; padding: 5px 12px; cursor: pointer; letter-spacing: 0.06em; text-transform: uppercase; transition: all 0.2s; white-space: nowrap; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary { border-color: var(--accent); color: var(--accent); }
+  .btn.primary:hover { background: var(--accent); color: var(--bg); }
+  .btn.danger { border-color: var(--red); color: var(--red); }
+  .btn.danger:hover { background: var(--red); color: var(--bg); }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* TABS */
+  .tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 24px; background: var(--surface); }
+  .tab { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; padding: 12px 16px; cursor: pointer; color: var(--text3); border-bottom: 2px solid transparent; transition: all 0.2s; background: none; border-top: none; border-left: none; border-right: none; font-family: var(--mono); }
+  .tab:hover { color: var(--text2); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* MAIN LAYOUT */
+  .main { display: flex; flex: 1; height: calc(100vh - 100px); }
+
+  /* SIDEBAR */
+  .sidebar { width: 220px; min-width: 220px; border-right: 1px solid var(--border); overflow-y: auto; background: var(--surface); display: flex; flex-direction: column; }
+  .sidebar-section { margin-bottom: 4px; }
+  .sidebar-company-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px 6px; cursor: pointer; user-select: none;
+  }
+  .sidebar-company-header:hover { background: var(--surface2); }
+  .sidebar-company-name { font-size: 13px; font-weight: 600; color: var(--text); letter-spacing: 0.04em; }
+  .sidebar-company-count { font-size: 9px; color: var(--text3); background: var(--surface2); border: 1px solid var(--border2); padding: 1px 5px; }
+  .sidebar-chevron { font-size: 9px; color: var(--text3); transition: transform 0.2s; }
+  .sidebar-chevron.open { transform: rotate(90deg); }
+  .sidebar-year-row {
+    padding: 5px 16px 5px 28px; cursor: pointer;
+    border-left: 2px solid transparent; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sidebar-year-row:hover { background: var(--surface2); }
+  .sidebar-year-row.selected { border-left-color: var(--accent); background: var(--surface2); }
+  .sidebar-year { font-size: 11px; color: var(--text2); }
+  .sidebar-year-meta { font-size: 9px; color: var(--text3); }
+  .sidebar-year-chunks { font-size: 9px; color: var(--text3); }
+  .no-filings { padding: 16px; font-size: 11px; color: var(--text3); line-height: 1.6; }
+
+  /* INGEST PANEL at bottom of sidebar */
+  .ingest-panel {
+    margin-top: auto; border-top: 1px solid var(--border);
+    padding: 12px 14px; background: var(--surface);
+  }
+  .ingest-label { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+  .ingest-row { display: flex; gap: 6px; margin-bottom: 6px; }
+  .ingest-input {
+    flex: 1; background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text); font-family: var(--mono); font-size: 11px;
+    padding: 5px 8px; outline: none; transition: border 0.2s; text-transform: uppercase;
+    min-width: 0;
+  }
+  .ingest-input:focus { border-color: var(--accent); }
+  .ingest-input::placeholder { text-transform: none; color: var(--text3); }
+  .ingest-select {
+    background: var(--surface2); border: 1px solid var(--border2);
+    color: var(--text2); font-family: var(--mono); font-size: 11px;
+    padding: 5px 6px; outline: none; width: 56px;
+  }
+  .ingest-status { font-size: 10px; color: var(--text3); margin-top: 4px; min-height: 14px; }
+  .ingest-status.success { color: var(--green); }
+  .ingest-status.error { color: var(--red); }
+  .ingest-status.loading { color: var(--yellow); }
+
+  /* CONTENT */
+  .content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .query-panel { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .query-input-area { border-bottom: 1px solid var(--border); padding: 16px 24px; background: var(--surface); display: flex; gap: 12px; align-items: flex-start; }
+  .query-box-wrap { flex: 1; }
+  .query-label { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+  .query-textarea { width: 100%; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); font-family: var(--mono); font-size: 13px; padding: 10px 12px; resize: none; outline: none; line-height: 1.5; transition: border 0.2s; }
+  .query-textarea:focus { border-color: var(--accent); }
+  .query-actions { display: flex; flex-direction: column; gap: 8px; align-items: flex-end; justify-content: flex-end; padding-bottom: 2px; }
+  .ticker-filter { background: var(--surface2); border: 1px solid var(--border2); color: var(--text2); font-family: var(--mono); font-size: 11px; padding: 5px 10px; outline: none; width: 120px; }
+
+  /* ANSWER */
+  .answer-area { flex: 1; display: flex; overflow: hidden; }
+  .answer-main { flex: 1; padding: 24px; overflow-y: auto; }
+  .answer-sources { width: 240px; min-width: 240px; border-left: 1px solid var(--border); overflow-y: auto; }
+  .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 12px; color: var(--text3); }
+  .empty-icon { font-size: 32px; opacity: 0.3; }
+  .empty-text { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+  .empty-hint { font-size: 10px; color: var(--text3); opacity: 0.6; }
+  .answer-header { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+  .answer-ticker-badge { font-size: 10px; color: var(--accent); border: 1px solid var(--accent); padding: 2px 8px; }
+  .answer-text { font-family: var(--mono); font-size: 13px; line-height: 1.8; color: var(--text); }
+  .answer-text h1, .answer-text h2, .answer-text h3 { font-family: var(--serif); color: var(--accent); margin: 20px 0 8px; font-size: 15px; font-weight: 600; }
+  .answer-text strong { color: var(--accent2); }
+  .answer-text ul, .answer-text ol { padding-left: 20px; margin: 8px 0; }
+  .answer-text li { margin: 4px 0; }
+  .answer-text table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 11px; }
+  .answer-text th { border: 1px solid var(--border2); padding: 6px 10px; color: var(--accent); text-align: left; background: var(--surface2); }
+  .answer-text td { border: 1px solid var(--border); padding: 6px 10px; color: var(--text2); }
+  .loading-bar { height: 1px; background: var(--border); overflow: hidden; margin-bottom: 16px; }
+  .loading-bar-inner { height: 100%; width: 30%; background: var(--accent); animation: loading 1.2s ease-in-out infinite; }
+  @keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(400%); } }
+  .sources-header { font-size: 9px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text3); padding: 16px; border-bottom: 1px solid var(--border); }
+  .source-card { padding: 10px 14px; border-bottom: 1px solid var(--border); animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .source-ticker { font-size: 11px; font-weight: 600; color: var(--accent); margin-bottom: 2px; }
+  .source-detail { font-size: 10px; color: var(--text3); line-height: 1.5; }
+  .source-section { font-size: 10px; color: var(--text2); margin-top: 3px; font-style: italic; }
+
+  /* COMPARE */
+  .compare-input-area { border-bottom: 1px solid var(--border); padding: 16px 24px; background: var(--surface); display: flex; gap: 12px; align-items: flex-end; }
+  .compare-field { flex: 1; }
+  .compare-vs { font-size: 11px; color: var(--text3); padding-bottom: 8px; letter-spacing: 0.1em; }
+  .compare-input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); font-family: var(--mono); font-size: 12px; padding: 8px 10px; outline: none; transition: border 0.2s; text-transform: uppercase; }
+  .compare-input:focus { border-color: var(--accent); }
+  .compare-input.lower { text-transform: none; }
+
+  /* DELTA */
+  .delta-input-area { border-bottom: 1px solid var(--border); padding: 16px 24px; background: var(--surface); display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .delta-field { flex: 1; min-width: 80px; }
+  .delta-arrow { font-size: 14px; color: var(--text3); padding-bottom: 9px; }
+  .delta-year-input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); color: var(--text); font-family: var(--mono); font-size: 12px; padding: 8px 10px; outline: none; transition: border 0.2s; }
+  .delta-year-input:focus { border-color: var(--yellow); }
+  .delta-result-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .delta-year-badge { font-size: 10px; padding: 2px 8px; border: 1px solid; }
+  .delta-year-badge.a { color: var(--text2); border-color: var(--border2); }
+  .delta-year-badge.b { color: var(--yellow); border-color: var(--yellow); }
+
+  /* HOLDINGS */
+  .holdings-panel { flex: 1; padding: 24px; overflow-y: auto; }
+  .holdings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 16px; }
+  .holding-card { background: var(--surface); border: 1px solid var(--border); padding: 16px; transition: border-color 0.2s; }
+  .holding-card:hover { border-color: var(--accent); }
+  .holding-ticker { font-family: var(--serif); font-size: 22px; color: var(--accent); }
+  .holding-company { font-size: 10px; color: var(--text3); margin-top: 4px; line-height: 1.4; }
+  .holding-stats { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; }
+  .holding-stat { display: flex; justify-content: space-between; font-size: 10px; }
+  .holding-stat-label { color: var(--text3); }
+  .holding-stat-value { color: var(--text2); }
+
+  .error-banner { background: #1a0a0a; border: 1px solid #3a1a1a; color: var(--red); font-size: 11px; padding: 10px 16px; margin: 0 16px 0; }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); }
+`;
+
+function renderMarkdown(text) {
+  if (!text) return "";
+  // Tables
+  text = text.replace(/\|(.+)\|\n\|[-| :]+\|\n((?:\|.+\|\n?)+)/g, (match, header, rows) => {
+    const ths = header.split('|').filter(s => s.trim()).map(s => `<th>${s.trim()}</th>`).join('');
+    const trs = rows.trim().split('\n').map(row => {
+      const tds = row.split('|').filter(s => s.trim()).map(s => `<td>${s.trim()}</td>`).join('');
+      return `<tr>${tds}</tr>`;
+    }).join('');
+    return `<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+  });
+  return text
+    .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/^- (.+)$/gm, '<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
+    .replace(/\n\n/g, '<br/><br/>');
+}
+
+// Group filings by ticker, sorted by date desc within each ticker
+function groupFilings(filings) {
+  const grouped = {};
+  filings.forEach(f => {
+    if (!grouped[f.ticker]) grouped[f.ticker] = { company: f.company, years: [] };
+    grouped[f.ticker].years.push(f);
+  });
+  Object.values(grouped).forEach(g => g.years.sort((a, b) => b.date.localeCompare(a.date)));
+  return grouped;
+}
+
+function Sidebar({ filings, selectedTicker, selectedDate, onSelect, baseUrl, onIngestDone }) {
+  const grouped = groupFilings(filings);
+  const tickers = Object.keys(grouped).sort();
+  const [expanded, setExpanded] = React.useState({});
+  const [ingestTicker, setIngestTicker] = React.useState("");
+  const [ingestYears, setIngestYears] = React.useState("1");
+  const [ingestForm, setIngestForm] = React.useState("10-K");
+  const [ingestStatus, setIngestStatus] = React.useState("");
+  const [ingestLoading, setIngestLoading] = React.useState(false);
+
+  // Auto-expand all tickers on first load
+  React.useEffect(() => {
+    if (tickers.length && Object.keys(expanded).length === 0) {
+      const all = {};
+      tickers.forEach(t => all[t] = true);
+      setExpanded(all);
+    }
+  }, [tickers.length]);
+
+  function toggleExpand(ticker) {
+    setExpanded(prev => ({ ...prev, [ticker]: !prev[ticker] }));
+  }
+
+  async function doIngest() {
+    if (!ingestTicker.trim() || ingestLoading) return;
+    setIngestLoading(true);
+    setIngestStatus("Ingesting...");
+    try {
+      const res = await fetch(`${baseUrl}/ingest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tickers: [ingestTicker.trim().toUpperCase()],
+          form_type: ingestForm,
+          count: parseInt(ingestYears)
+        })
+      });
+      const data = await res.json();
+      const result = data.results?.[0];
+      if (result?.status === "success") {
+        setIngestStatus(`✓ Done · ${data.total_chunks_now} total chunks`);
+        setIngestTicker("");
+        onIngestDone();
+      } else {
+        setIngestStatus(`✗ ${result?.detail || "Failed"}`);
+      }
+    } catch (e) {
+      setIngestStatus(`✗ ${e.message}`);
+    } finally {
+      setIngestLoading(false);
+    }
+  }
+
+  return (
+    <aside className="sidebar">
+      {/* Filings tree */}
+      <div style={{ flex: 1 }}>
+        {tickers.length === 0
+          ? <div className="no-filings">Connect to your API to see ingested filings.</div>
+          : tickers.map(ticker => {
+            const group = grouped[ticker];
+            const isOpen = expanded[ticker];
+            return (
+              <div key={ticker} className="sidebar-section">
+                <div className="sidebar-company-header" onClick={() => toggleExpand(ticker)}>
+                  <div>
+                    <div className="sidebar-company-name">{ticker}</div>
+                    <div style={{ fontSize: 9, color: "var(--text3)", marginTop: 1 }}>{group.company.slice(0, 22)}</div>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span className="sidebar-company-count">{group.years.length}yr</span>
+                    <span className={`sidebar-chevron ${isOpen ? "open" : ""}`}>▶</span>
+                  </div>
+                </div>
+                {isOpen && group.years.map(f => {
+                  const isSelected = selectedTicker === f.ticker && selectedDate === f.date;
+                  return (
+                    <div key={f.date}
+                      className={`sidebar-year-row ${isSelected ? "selected" : ""}`}
+                      onClick={() => onSelect(f.ticker, f.date)}>
+                      <div>
+                        <div className="sidebar-year">{f.date.slice(0, 4)} <span style={{ color: "var(--text3)", fontSize: 9 }}>{f.form}</span></div>
+                        <div className="sidebar-year-meta">{f.date}</div>
+                      </div>
+                      <div className="sidebar-year-chunks">{f.chunks}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })
+        }
+      </div>
+
+      {/* Ingest panel */}
+      <div className="ingest-panel">
+        <div className="ingest-label">Ingest New Filing</div>
+        <div className="ingest-row">
+          <input
+            className="ingest-input"
+            value={ingestTicker}
+            onChange={e => setIngestTicker(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && doIngest()}
+            placeholder="Ticker (e.g. AAPL)"
+            maxLength={6}
+          />
+        </div>
+        <div className="ingest-row">
+          <select className="ingest-select" value={ingestForm} onChange={e => setIngestForm(e.target.value)} style={{ flex: 1 }}>
+            <option value="10-K">10-K</option>
+            <option value="10-Q">10-Q</option>
+          </select>
+          <select className="ingest-select" value={ingestYears} onChange={e => setIngestYears(e.target.value)} style={{ flex: 1, marginLeft: 6 }}>
+            {[1,2,3,4,5].map(n => <option key={n} value={n}>{n}yr</option>)}
+          </select>
+          <button
+            className="btn primary"
+            style={{ fontSize: 10, padding: "5px 10px", marginLeft: 6 }}
+            onClick={doIngest}
+            disabled={ingestLoading || !ingestTicker.trim()}
+          >
+            {ingestLoading ? "..." : "Go"}
+          </button>
+        </div>
+        <div className={`ingest-status ${ingestLoading ? "loading" : ingestStatus.startsWith("✓") ? "success" : ingestStatus.startsWith("✗") ? "error" : ""}`}>
+          {ingestStatus}
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+function App() {
+  const [apiUrl, setApiUrl] = React.useState("https://favourite-apollo-newer-desert.trycloudflare.com");
+  const [connected, setConnected] = React.useState(false);
+  const [filings, setFilings] = React.useState([]);
+  const [activeTab, setActiveTab] = React.useState("Query");
+  const [selectedTicker, setSelectedTicker] = React.useState("");
+  const [selectedDate, setSelectedDate] = React.useState("");
+  const [error, setError] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
+
+  // Query state
+  const [question, setQuestion] = React.useState("");
+  const [answer, setAnswer] = React.useState(null);
+  const [sources, setSources] = React.useState([]);
+
+  // Compare state
+  const [compareA, setCompareA] = React.useState("UBER");
+  const [compareB, setCompareB] = React.useState("LYFT");
+  const [compareTopic, setCompareTopic] = React.useState("");
+  const [compareResult, setCompareResult] = React.useState(null);
+
+  // Delta state
+  const [deltaTicker, setDeltaTicker] = React.useState("UBER");
+  const [deltaTopic, setDeltaTopic] = React.useState("");
+  const [deltaYearA, setDeltaYearA] = React.useState("2024");
+  const [deltaYearB, setDeltaYearB] = React.useState("2026");
+  const [deltaResult, setDeltaResult] = React.useState(null);
+
+  const baseUrl = apiUrl.replace(/\/$/, "");
+
+  const uniqueTickers = [...new Set(filings.map(f => f.ticker))];
+
+  async function loadFilings() {
+    const res = await fetch(`${baseUrl}/list`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    setFilings(data.filings || []);
+  }
+
+  async function connect() {
+    setError(null);
+    try {
+      await loadFilings();
+      setConnected(true);
+    } catch (e) {
+      setConnected(false);
+      setError(`Cannot connect: ${e.message}. Is your server running?`);
+    }
+  }
+
+  function handleSidebarSelect(ticker, date) {
+    if (selectedTicker === ticker && selectedDate === date) {
+      setSelectedTicker(""); setSelectedDate("");
+    } else {
+      setSelectedTicker(ticker); setSelectedDate(date);
+    }
+  }
+
+  async function askQuestion() {
+    if (!question.trim() || loading) return;
+    setLoading(true); setError(null); setAnswer(null); setSources([]);
+    try {
+      const res = await fetch(`${baseUrl}/ask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: question.trim(), ticker: selectedTicker || null }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+      const data = await res.json();
+      setAnswer(data.answer); setSources(data.sources || []);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }
+
+  async function runCompare() {
+    if (!compareA || !compareB || !compareTopic || loading) return;
+    setLoading(true); setError(null); setCompareResult(null);
+    try {
+      const res = await fetch(`${baseUrl}/compare`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ticker_a: compareA.toUpperCase(), ticker_b: compareB.toUpperCase(), topic: compareTopic }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+      const data = await res.json();
+      setCompareResult(data);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }
+
+  async function runDelta() {
+    if (!deltaTicker || !deltaTopic || !deltaYearA || !deltaYearB || loading) return;
+    setLoading(true); setError(null); setDeltaResult(null);
+    try {
+      const res = await fetch(`${baseUrl}/delta`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ticker: deltaTicker.toUpperCase(),
+          topic: deltaTopic,
+          year_a: parseInt(deltaYearA),
+          year_b: parseInt(deltaYearB),
+        }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || `HTTP ${res.status}`); }
+      const data = await res.json();
+      setDeltaResult(data);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      if (activeTab === "Query") askQuestion();
+      if (activeTab === "Compare") runCompare();
+      if (activeTab === "Delta") runDelta();
+    }
+  }
+
+  function LoadingState({ labelA, labelB }) {
+    return (
+      <div>
+        <div className="loading-bar"><div className="loading-bar-inner" /></div>
+        <div style={{ fontSize: 11, color: "var(--text3)", letterSpacing: "0.08em" }}>
+          {labelA}{labelB ? ` · ${labelB}` : ""}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="app">
+      <style>{STYLES}</style>
+
+      <header className="header">
+        <div className="header-left">
+          <div className="logo">SecIntel <span>Market Intelligence</span></div>
+          <div className="status-text">
+            <span className={`status-dot ${connected ? "connected" : ""}`} />
+            {connected ? `${filings.length} filing${filings.length !== 1 ? "s" : ""} loaded` : "disconnected"}
+          </div>
+        </div>
+        <div className="api-input-wrap">
+          <input className="api-input" value={apiUrl} onChange={e => setApiUrl(e.target.value)}
+            placeholder="https://your-tunnel.trycloudflare.com"
+            onKeyDown={e => e.key === "Enter" && connect()} />
+          <button className="btn primary" onClick={connect}>Connect</button>
+        </div>
+      </header>
+
+      <div className="tabs">
+        {["Query", "Compare", "Delta", "Holdings"].map(tab => (
+          <button key={tab} className={`tab ${activeTab === tab ? "active" : ""}`}
+            onClick={() => { setActiveTab(tab); setError(null); }}>{tab}</button>
+        ))}
+      </div>
+
+      <div className="main">
+        <Sidebar
+          filings={filings}
+          selectedTicker={selectedTicker}
+          selectedDate={selectedDate}
+          onSelect={handleSidebarSelect}
+          baseUrl={baseUrl}
+          onIngestDone={async () => { try { await loadFilings(); } catch(e) {} }}
+        />
+
+        <div className="content">
+          {error && <div className="error-banner" style={{marginTop:12}}>⚠ {error}</div>}
+
+          {/* ── QUERY ── */}
+          {activeTab === "Query" && (
+            <div className="query-panel">
+              <div className="query-input-area">
+                <div className="query-box-wrap">
+                  <div className="query-label">
+                    {selectedTicker ? `Querying ${selectedTicker}${selectedDate ? ` (${selectedDate})` : ""}` : "Query all filings"} · ⌘↵ to submit
+                  </div>
+                  <textarea className="query-textarea" rows={3} value={question}
+                    onChange={e => setQuestion(e.target.value)} onKeyDown={handleKeyDown}
+                    placeholder="What are the main risk factors? How did revenue perform?" />
+                </div>
+                <div className="query-actions">
+                  <select className="ticker-filter" value={selectedTicker} onChange={e => { setSelectedTicker(e.target.value); setSelectedDate(""); }}>
+                    <option value="">All tickers</option>
+                    {uniqueTickers.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <button className="btn primary" onClick={askQuestion} disabled={loading || !question.trim()}>
+                    {loading ? "Thinking..." : "Ask →"}
+                  </button>
+                </div>
+              </div>
+              <div className="answer-area">
+                <div className="answer-main">
+                  {loading && <LoadingState labelA="RETRIEVING CONTEXT" labelB="GENERATING ANSWER" />}
+                  {!loading && !answer && <div className="empty-state"><div className="empty-icon">◈</div><div className="empty-text">Ask a question</div><div className="empty-hint">Click a filing in the sidebar to filter by year</div></div>}
+                  {answer && (
+                    <>
+                      <div className="answer-header">
+                        <span>Answer · {sources.length} sources</span>
+                        {selectedTicker && <span className="answer-ticker-badge">{selectedTicker}{selectedDate ? ` ${selectedDate.slice(0,4)}` : ""}</span>}
+                      </div>
+                      <div className="answer-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(answer) }} />
+                    </>
+                  )}
+                </div>
+                <div className="answer-sources">
+                  <div className="sources-header">Sources · {sources.length} chunks</div>
+                  {sources.map((s, i) => (
+                    <div key={i} className="source-card">
+                      <div className="source-ticker">{s.ticker} · {s.form}</div>
+                      <div className="source-detail">Filed {s.date}</div>
+                      <div className="source-section">{s.section}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── COMPARE ── */}
+          {activeTab === "Compare" && (
+            <div className="query-panel">
+              <div className="compare-input-area">
+                <div className="compare-field">
+                  <div className="query-label">Ticker A</div>
+                  <input className="compare-input" value={compareA} onChange={e => setCompareA(e.target.value)} placeholder="UBER" maxLength={6} />
+                </div>
+                <div className="compare-vs">vs</div>
+                <div className="compare-field">
+                  <div className="query-label">Ticker B</div>
+                  <input className="compare-input" value={compareB} onChange={e => setCompareB(e.target.value)} placeholder="LYFT" maxLength={6} />
+                </div>
+                <div className="compare-field" style={{ flex: 3 }}>
+                  <div className="query-label">Topic · ⌘↵ to run</div>
+                  <input className="compare-input lower" value={compareTopic} onChange={e => setCompareTopic(e.target.value)}
+                    onKeyDown={handleKeyDown} placeholder="autonomous vehicles, revenue growth, risk factors..." />
+                </div>
+                <button className="btn primary" onClick={runCompare}
+                  disabled={loading || !compareA || !compareB || !compareTopic} style={{ alignSelf: "flex-end" }}>
+                  {loading ? "Comparing..." : "Compare →"}
+                </button>
+              </div>
+              <div className="answer-main" style={{ padding: 24, overflowY: "auto", flex: 1 }}>
+                {loading && <LoadingState labelA={`RETRIEVING ${compareA}`} labelB={`RETRIEVING ${compareB} · COMPARING`} />}
+                {!loading && !compareResult && <div className="empty-state"><div className="empty-icon">⊕</div><div className="empty-text">Compare two companies</div><div className="empty-hint">Enter two tickers and a topic</div></div>}
+                {compareResult && (
+                  <>
+                    <div className="answer-header">
+                      <span>{compareResult.ticker_a} vs {compareResult.ticker_b}</span>
+                      <span style={{ color: "var(--text2)", fontSize: 10 }}>"{compareResult.topic}"</span>
+                    </div>
+                    <div className="answer-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(compareResult.answer) }} />
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── DELTA ── */}
+          {activeTab === "Delta" && (
+            <div className="query-panel">
+              <div className="delta-input-area">
+                <div className="delta-field" style={{ maxWidth: 100 }}>
+                  <div className="query-label">Ticker</div>
+                  <input className="compare-input" value={deltaTicker} onChange={e => setDeltaTicker(e.target.value)}
+                    placeholder="UBER" maxLength={6} />
+                </div>
+                <div className="delta-field" style={{ maxWidth: 80 }}>
+                  <div className="query-label">From</div>
+                  <input className="delta-year-input" value={deltaYearA} onChange={e => setDeltaYearA(e.target.value)}
+                    placeholder="2024" maxLength={4} />
+                </div>
+                <div className="delta-arrow">→</div>
+                <div className="delta-field" style={{ maxWidth: 80 }}>
+                  <div className="query-label">To</div>
+                  <input className="delta-year-input" value={deltaYearB} onChange={e => setDeltaYearB(e.target.value)}
+                    placeholder="2026" maxLength={4} />
+                </div>
+                <div className="delta-field" style={{ flex: 3 }}>
+                  <div className="query-label">Topic · ⌘↵ to run</div>
+                  <input className="compare-input lower" value={deltaTopic} onChange={e => setDeltaTopic(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="autonomous vehicles, revenue, areas of investment, competitive strategy..." />
+                </div>
+                <button className="btn primary" onClick={runDelta}
+                  disabled={loading || !deltaTicker || !deltaTopic || !deltaYearA || !deltaYearB}
+                  style={{ alignSelf: "flex-end" }}>
+                  {loading ? "Analysing..." : "Delta →"}
+                </button>
+              </div>
+              <div className="answer-main" style={{ padding: 24, overflowY: "auto", flex: 1 }}>
+                {loading && <LoadingState labelA={`RETRIEVING ${deltaTicker} ${deltaYearA}`} labelB={`RETRIEVING ${deltaYearB} · ANALYSING CHANGE`} />}
+                {!loading && !deltaResult && (
+                  <div className="empty-state">
+                    <div className="empty-icon">⟳</div>
+                    <div className="empty-text">Year-over-year delta</div>
+                    <div className="empty-hint">Works on numbers, strategy, tone, risk posture — anything in the filings</div>
+                  </div>
+                )}
+                {deltaResult && (
+                  <>
+                    <div className="delta-result-header">
+                      <span className="delta-year-badge a">{deltaResult.ticker} {deltaResult.year_a}</span>
+                      <span style={{ color: "var(--text3)", fontSize: 11 }}>→</span>
+                      <span className="delta-year-badge b">{deltaResult.ticker} {deltaResult.year_b}</span>
+                      <span style={{ color: "var(--text2)", fontSize: 10 }}>"{deltaResult.topic}"</span>
+                    </div>
+                    <div className="answer-text" dangerouslySetInnerHTML={{ __html: renderMarkdown(deltaResult.answer) }} />
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── HOLDINGS ── */}
+          {activeTab === "Holdings" && (
+            <div className="holdings-panel">
+              <div className="answer-header"><span>Ingested Filings · {filings.length} filings across {uniqueTickers.length} companies</span></div>
+              {filings.length === 0
+                ? <div className="empty-state" style={{ height: 200 }}><div className="empty-icon">◈</div><div className="empty-text">No filings ingested</div><div className="empty-hint">Use the ingest panel in the sidebar</div></div>
+                : <div className="holdings-grid">
+                  {filings.map(f => (
+                    <div key={f.ticker + f.date} className="holding-card">
+                      <div className="holding-ticker">{f.ticker}</div>
+                      <div className="holding-company">{f.company}</div>
+                      <div className="holding-stats">
+                        <div className="holding-stat"><span className="holding-stat-label">Form</span><span className="holding-stat-value">{f.form}</span></div>
+                        <div className="holding-stat"><span className="holding-stat-label">Filed</span><span className="holding-stat-value">{f.date}</span></div>
+                        <div className="holding-stat"><span className="holding-stat-label">Chunks</span><span className="holding-stat-value">{f.chunks}</span></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              }
+            </div>
+          )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
